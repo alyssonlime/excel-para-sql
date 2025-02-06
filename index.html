@@ -174,10 +174,11 @@
                     values[fieldName] = [];
                 }
                 
-                values[fieldName].push(row[index]);
+                let sanitizedValue = String(row[index]).replace(/'/g, "''");
+                values[fieldName].push(sanitizedValue);
                 
                 if (isKey) {
-                    keys.push(`${fieldName} = '${row[index]}'`);
+                    keys.push(`${fieldName} = '${sanitizedValue}'`);
                 }
             });
             
@@ -250,6 +251,7 @@
         reader.readAsText(file);
     };
 });
+
 
 
 
