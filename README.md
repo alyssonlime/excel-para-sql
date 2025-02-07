@@ -3,8 +3,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 📌 **Autor:** Francisco Alysson Freires Cunha  
-📅 **Criado em:** 06/02/2025  
-🛠 **Última atualização:** 06/02/2025  
+📅 **Criado em:** 06/02/2025
 
 ---
 
