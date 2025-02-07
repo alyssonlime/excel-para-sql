@@ -72,9 +72,9 @@
       </div>
     </div>
 
-    <!-- Tabela de De-Para com nova coluna de Concatenação -->
+    <!-- Tabela de De-Para com nova ordem de colunas -->
     <div id="mappingContainer" class="mt-3">
-      <table class="table table-bordered">
+      <table class="table table-bordered text-center">
         <thead class="thead-light">
           <tr>
             <th>Incluir</th>
@@ -100,7 +100,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
 <script>
-  // Converte número para a letra da coluna do Excel
+  // Função para converter número para a letra da coluna do Excel
   function numberToExcelColumn(n) {
     let result = '';
     while(n >= 0) {
@@ -110,12 +110,12 @@
     return result;
   }
   
-  // Junta os valores usando os separadores configurados
+  // Função que junta os valores usando os separadores configurados
   function joinWithSeparators(arr) {
     let result = '';
     for (let i = 0; i < arr.length; i++) {
       result += arr[i].value;
-      // Se não for o último item, adiciona o separador configurado
+      // Adiciona o separador configurado se não for o último item
       if (i < arr.length - 1) {
         result += arr[i].separator;
       }
@@ -124,26 +124,20 @@
   }
   
   $(document).ready(function() {
-    // Cria 50 linhas na tabela de mapeamento
-    // Cada linha possui:
-    // - Checkbox para inclusão
-    // - Input para índice com label para a letra da coluna do Excel
-    // - Input para o valor de concatenação
-    // - Input para o nome do campo de destino
-    // - Checkbox para chave
+    // Criação das 50 linhas da tabela de mapeamento com a nova ordem de colunas
     for (let i = 0; i < 50; i++) {
       $('#mappingTable').append(`
         <tr>
           <td><input type="checkbox" class="useField"></td>
           <td>
-            <input type="number" class="columnIndex" min="0" placeholder="Ex: 0">
+            <input type="number" class="columnIndex" min="0" placeholder="Ex: 0" style="width:75px;">
             <span class="columnLetter" style="margin-left: 5px;"></span>
           </td>
           <td>
-            <input type="text" class="fieldName" placeholder="Ex: endereco">
+            <input type="text" class="fieldName" placeholder="Ex: endereco" style="width:100%;">
           </td>
           <td>
-            <input type="text" class="concatSeparator" placeholder="Ex: , ">
+            <input type="text" class="concatSeparator" placeholder="Ex: , " style="width:120px;">
           </td>
           <td>
             <input type="checkbox" class="isKey">
@@ -152,14 +146,14 @@
       `);
     }
     
-    // Atualiza o label da letra da coluna quando o índice é alterado
+    // Atualiza o label com a letra correspondente quando o índice é alterado
     $(document).on('change', '.columnIndex', function() {
       let value = parseInt($(this).val());
       let letter = isNaN(value) ? '' : numberToExcelColumn(value);
       $(this).siblings('.columnLetter').text(letter);
     });
   
-    // Gera o SQL ao clicar no botão "Gerar SQL"
+    // Função que gera o SQL ao clicar no botão "Gerar SQL"
     window.generateSQL = function() {
       const fileInput = document.getElementById('fileUpload');
       if (!fileInput.files || fileInput.files.length === 0) {
@@ -210,8 +204,8 @@
           let values = {};
           let keys = [];
           
-          // Para cada mapeamento, agrupa os valores pelo nome do campo
-          // e guarda cada valor com seu separador configurado
+          // Agrupa os valores de cada mapeamento pelo nome do campo,
+          // armazenando cada valor com seu respectivo separador
           mappings.forEach(({ index, fieldName, isKey, concatSeparator }) => {
             if (!values[fieldName]) {
               values[fieldName] = [];
@@ -243,7 +237,7 @@
       reader.readAsArrayBuffer(file);
     };
     
-    // Função para baixar a configuração (agora incluindo o valor de concatenação)
+    // Função para baixar a configuração, incluindo o valor de concatenação
     window.downloadConfig = function() {
       const tableName = $('#tableName').val().trim();
       const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -274,7 +268,7 @@
       a.click();
     };
     
-    // Função para carregar a configuração (incluindo o valor de concatenação)
+    // Função para carregar a configuração, incluindo o valor de concatenação
     window.loadConfigFromFile = function(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -292,8 +286,8 @@
           if (index < config.mappings.length) {
             $(this).find('.useField').prop('checked', true);
             $(this).find('.columnIndex').val(config.mappings[index].index).trigger('change');
-            $(this).find('.concatSeparator').val(config.mappings[index].concatSeparator);
             $(this).find('.fieldName').val(config.mappings[index].fieldName);
+            $(this).find('.concatSeparator').val(config.mappings[index].concatSeparator);
             $(this).find('.isKey').prop('checked', config.mappings[index].isKey);
           }
         });
