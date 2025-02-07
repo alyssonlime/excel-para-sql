@@ -11,7 +11,7 @@
     .left-panel { width: 50%; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
     #mappingContainer { flex-grow: 1; overflow-y: auto; border: 1px solid #ddd; padding: 10px; }
     .right-panel { width: 50%; display: flex; flex-direction: column; padding: 10px; }
-    #output { flex-grow: 1; font-family: monospace; resize: none; overflow-y: auto; } /*overflow: both; white-space: pre;*/
+    #output { flex-grow: 1; font-family: monospace; resize: none; overflow-y: auto; }
   </style>
 </head>
 <body>
@@ -26,38 +26,36 @@
       <input type="file" class="form-control-file" id="fileUpload" accept=".xlsx, .csv">
     </div>
 
-
     <h4>Configurações</h4>
     <div class="row mt-3">
-	
-		 <div class="col-md-6 mb-2">
-			<!-- Nome da Tabela -->
-			<div class="form-group">
-			  <label for="tableName">Nome da Tabela:</label>
-			  <input type="text" class="form-control" id="tableName" placeholder="Digite o nome da tabela">
-			</div>
+      <div class="col-md-6 mb-2">
+        <!-- Nome da Tabela -->
+        <div class="form-group">
+          <label for="tableName">Nome da Tabela:</label>
+          <input type="text" class="form-control" id="tableName" placeholder="Digite o nome da tabela">
+        </div>
 
-			<!-- Opção de ignorar primeira linha -->
-			<div class="form-check">
-			  <input type="checkbox" class="form-check-input" id="ignoreHeader">
-			  <label class="form-check-label" for="ignoreHeader">Ignorar primeira linha (cabeçalho)</label>
-			</div>
-		</div>
+        <!-- Opção de ignorar primeira linha -->
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="ignoreHeader">
+          <label class="form-check-label" for="ignoreHeader">Ignorar primeira linha (cabeçalho)</label>
+        </div>
+      </div>
 
-		<div class="col-md-6 mb-2">
-			<!-- Escolha de SQL (INSERT ou UPDATE) -->
-			<div class="form-group mt-2">
-			  <label>Tipo de SQL:</label><br>
-			  <div class="form-check form-check-inline">
-				<input class="form-check-input" type="radio" name="sqlType" id="insertOption" value="insert" checked>
-				<label class="form-check-label" for="insertOption">INSERT</label>
-			  </div>
-			  <div class="form-check form-check-inline">
-				<input class="form-check-input" type="radio" name="sqlType" id="updateOption" value="update">
-				<label class="form-check-label" for="updateOption">UPDATE</label>
-			  </div>
-			</div>
-		</div>
+      <div class="col-md-6 mb-2">
+        <!-- Escolha de SQL (INSERT ou UPDATE) -->
+        <div class="form-group mt-2">
+          <label>Tipo de SQL:</label><br>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="sqlType" id="insertOption" value="insert" checked>
+            <label class="form-check-label" for="insertOption">INSERT</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="sqlType" id="updateOption" value="update">
+            <label class="form-check-label" for="updateOption">UPDATE</label>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Botões -->
@@ -98,7 +96,9 @@
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
-<script> $(document).ready(function() {
+<script>
+  $(document).ready(function() {
+    // Criação das 50 linhas da tabela de mapeamento
     for (let i = 0; i < 50; i++) {
       $('#mappingTable').append(`
         <tr>
@@ -109,152 +109,141 @@
         </tr>
       `);
     }
-  });
   
-  $(document).ready(function() {
-    let fileData = [];
-    
-    $('#fileUpload').on('change', function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheet];
-            fileData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        };
-        
-        reader.readAsArrayBuffer(file);
-    });
-    
+    // A função generateSQL agora faz a leitura do arquivo ao ser chamada
     window.generateSQL = function() {
-        if (fileData.length === 0) {
-            alert('Nenhum arquivo carregado!');
-            return;
-        }
+      const fileInput = document.getElementById('fileUpload');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Nenhum arquivo carregado!');
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheet];
+        const fileData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
         const tableName = $('#tableName').val().trim();
         if (!tableName) {
-            alert('Por favor, insira o nome da tabela!');
-            return;
+          alert('Por favor, insira o nome da tabela!');
+          return;
         }
         
         const ignoreHeader = $('#ignoreHeader').prop('checked');
         const sqlType = $('input[name="sqlType"]:checked').val();
-        
         let mappings = [];
         $('#mappingTable tr').each(function() {
-            const include = $(this).find('.useField').prop('checked');
-            const index = parseInt($(this).find('.columnIndex').val());
-            const fieldName = $(this).find('.fieldName').val().trim();
-            const isKey = $(this).find('.isKey').prop('checked');
-            
-            if (include && !isNaN(index) && fieldName) {
-                mappings.push({ index, fieldName, isKey });
-            }
+          const include = $(this).find('.useField').prop('checked');
+          const index = parseInt($(this).find('.columnIndex').val());
+          const fieldName = $(this).find('.fieldName').val().trim();
+          const isKey = $(this).find('.isKey').prop('checked');
+          if (include && !isNaN(index) && fieldName) {
+            mappings.push({ index, fieldName, isKey });
+          }
         });
         
         if (mappings.length === 0) {
-            alert('Nenhum campo configurado!');
-            return;
+          alert('Nenhum campo configurado!');
+          return;
         }
         
         let sqlStatements = [];
         const dataRows = ignoreHeader ? fileData.slice(1) : fileData;
         
         dataRows.forEach(row => {
-            let values = {};
-            let keys = [];
-            
-            mappings.forEach(({ index, fieldName, isKey }) => {
-                if (!values[fieldName]) {
-                    values[fieldName] = [];
-                }
-                
-                let sanitizedValue = String(row[index]).replace(/'/g, "''");
-                values[fieldName].push(sanitizedValue);
-                
-                if (isKey) {
-                    keys.push(`${fieldName} = '${sanitizedValue}'`);
-                }
-            });
-            
-            let columns = Object.keys(values);
-            let formattedValues = columns.map(col => `'${values[col].join(', ')}'`);
-            
-            if (sqlType === 'insert') {
-                sqlStatements.push(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${formattedValues.join(', ')});`);
-            } else if (sqlType === 'update' && keys.length > 0) {
-                let setClause = columns.filter(col => !mappings.find(m => m.fieldName === col && m.isKey)).map(col => `${col} = '${values[col].join(', ')}'`).join(', ');
-                sqlStatements.push(`UPDATE ${tableName} SET ${setClause} WHERE ${keys.join(' AND ')};`);
+          let values = {};
+          let keys = [];
+          
+          mappings.forEach(({ index, fieldName, isKey }) => {
+            if (!values[fieldName]) {
+              values[fieldName] = [];
             }
+            
+            let sanitizedValue = String(row[index]).replace(/'/g, "''");
+            values[fieldName].push(sanitizedValue);
+            
+            if (isKey) {
+              keys.push(`${fieldName} = '${sanitizedValue}'`);
+            }
+          });
+          
+          let columns = Object.keys(values);
+          let formattedValues = columns.map(col => `'${values[col].join(', ')}'`);
+          
+          if (sqlType === 'insert') {
+            sqlStatements.push(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${formattedValues.join(', ')});`);
+          } else if (sqlType === 'update' && keys.length > 0) {
+            let setClause = columns.filter(col => !mappings.find(m => m.fieldName === col && m.isKey))
+                                    .map(col => `${col} = '${values[col].join(', ')}'`)
+                                    .join(', ');
+            sqlStatements.push(`UPDATE ${tableName} SET ${setClause} WHERE ${keys.join(' AND ')};`);
+          }
         });
         
         $('#output').val(sqlStatements.join('\n'));
+      };
+      
+      reader.readAsArrayBuffer(file);
     };
     
     window.downloadConfig = function() {
-        const tableName = $('#tableName').val().trim();
-        const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_-]/g, '');
+      const tableName = $('#tableName').val().trim();
+      const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_-]/g, '');
+      
+      const config = {
+        tableName: tableName,
+        ignoreHeader: $('#ignoreHeader').prop('checked'),
+        insertOption: $('#insertOption').prop('checked'),
+        mappings: []
+      };
+      
+      $('#mappingTable tr').each(function() {
+        const include = $(this).find('.useField').prop('checked');
+        const index = parseInt($(this).find('.columnIndex').val());
+        const fieldName = $(this).find('.fieldName').val().trim();
+        const isKey = $(this).find('.isKey').prop('checked');
         
-        const config = {
-            tableName: tableName,
-            ignoreHeader: $('#ignoreHeader').prop('checked'),
-            insertOption: $('#insertOption').prop('checked'),
-            mappings: []
-        };
-        
-        $('#mappingTable tr').each(function() {
-            const include = $(this).find('.useField').prop('checked');
-            const index = parseInt($(this).find('.columnIndex').val());
-            const fieldName = $(this).find('.fieldName').val().trim();
-            const isKey = $(this).find('.isKey').prop('checked');
-            
-            if (include && !isNaN(index) && fieldName) {
-                config.mappings.push({ index, fieldName, isKey });
-            }
-        });
-        
-        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Config_${sanitizedTableName}.json`;
-        a.click();
+        if (include && !isNaN(index) && fieldName) {
+          config.mappings.push({ index, fieldName, isKey });
+        }
+      });
+      
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Config_${sanitizedTableName}.json`;
+      a.click();
     };
     
     window.loadConfigFromFile = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const config = JSON.parse(e.target.result);
         
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const config = JSON.parse(e.target.result);
-            
-            $('#tableName').val(config.tableName);
-            $('#ignoreHeader').prop('checked', config.ignoreHeader);
-            $('#insertOption').prop('checked', config.insertOption ?? true);
-            $('#updateOption').prop('checked', !$('#insertOption').prop('checked'));
-            
-            $('#mappingTable tr').each(function(index) {
-                if (index < config.mappings.length) {
-                    $(this).find('.useField').prop('checked', true);
-                    $(this).find('.columnIndex').val(config.mappings[index].index);
-                    $(this).find('.fieldName').val(config.mappings[index].fieldName);
-                    $(this).find('.isKey').prop('checked', config.mappings[index].isKey);
-                }
-            });
-        };
+        $('#tableName').val(config.tableName);
+        $('#ignoreHeader').prop('checked', config.ignoreHeader);
+        $('#insertOption').prop('checked', config.insertOption ?? true);
+        $('#updateOption').prop('checked', !$('#insertOption').prop('checked'));
         
-        reader.readAsText(file);
+        $('#mappingTable tr').each(function(index) {
+          if (index < config.mappings.length) {
+            $(this).find('.useField').prop('checked', true);
+            $(this).find('.columnIndex').val(config.mappings[index].index);
+            $(this).find('.fieldName').val(config.mappings[index].fieldName);
+            $(this).find('.isKey').prop('checked', config.mappings[index].isKey);
+          }
+        });
+      };
+      
+      reader.readAsText(file);
     };
-});
-
-
-
-
+  });
 </script>
 
 </body>
