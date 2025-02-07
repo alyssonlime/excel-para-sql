@@ -90,7 +90,10 @@
   </div>
 
   <div class="right-panel">
-    <h4>SQL Gerado</h4>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <h4 style="margin: 0;">SQL Gerado</h4>
+      <button class="btn btn-outline-secondary btn-sm" onclick="copySQL()">Copiar</button>
+    </div>
     <textarea id="output" class="form-control" readonly></textarea>
   </div>
 </div>
@@ -296,6 +299,37 @@
       reader.readAsText(file);
     };
   });
+  
+  // Função para copiar o conteúdo do SQL gerado
+  window.copySQL = function() {
+    const sql = document.getElementById("output").value;
+    if (!sql) {
+      alert("Nenhum SQL gerado para copiar!");
+      return;
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(sql).then(() => {
+        alert("SQL copiado para a área de transferência!");
+      }, () => {
+        alert("Erro ao copiar o SQL.");
+      });
+    } else {
+      // Fallback para navegadores que não suportam navigator.clipboard
+      let textArea = document.createElement("textarea");
+      textArea.value = sql;
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        alert("SQL copiado para a área de transferência!");
+      } catch (err) {
+        alert("Erro ao copiar o SQL.");
+      }
+      document.body.removeChild(textArea);
+    }
+  };
 </script>
 
 </body>
