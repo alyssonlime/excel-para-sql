@@ -65,7 +65,7 @@
       </div>
       <div class="col-md-4 mb-2">
         <button class="btn btn-secondary btn-block" onclick="document.getElementById('uploadConfig').click()">Carregar Configuração</button>
-        <input type="file" id="uploadConfig" style="display: none" onchange="loadConfigFromFile(event)">
+        <input type="file" id="uploadConfig" style="display: none" onchange="loadConfigFromFile(event)" accept=".json">
       </div>
       <div class="col-md-4 mb-2">
         <button class="btn btn-secondary btn-block" onclick="downloadConfig()">Baixar Configuração</button>
@@ -93,7 +93,10 @@
   <div class="right-panel">
     <div style="display: flex; align-items: center; justify-content: space-between;">
       <h4 style="margin: 0;">SQL Gerado</h4>
-      <button class="btn btn-outline-secondary btn-sm" onclick="copySQL()">Copiar</button>
+      <div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="downloadSQLFile()">Baixar</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="copySQL()">Copiar</button>
+      </div>
     </div>
     <textarea id="output" class="form-control" readonly></textarea>
   </div>
@@ -200,7 +203,7 @@
   }
   
   $(document).ready(function() {
-    // Cria 50 linhas na tabela de mapeamento com a nova ordem de colunas (incluindo a coluna "Data/Hora")
+    // Cria 50 linhas na tabela de mapeamento (incluindo a coluna "Data/Hora")
     for (let i = 0; i < 50; i++) {
       $('#mappingTable').append(`
         <tr>
@@ -282,8 +285,7 @@
           let values = {};
           let keys = [];
           
-          // Para cada mapeamento, agrupa os valores pelo nome do campo.
-          // Se a coluna estiver marcada como Data/Hora, converte o valor para o formato ISO.
+          // Processa cada mapeamento
           mappings.forEach(({ index, fieldName, isKey, concatSeparator, isDateTime }) => {
             if (!values[fieldName]) {
               values[fieldName] = [];
@@ -321,7 +323,7 @@
       reader.readAsArrayBuffer(file);
     };
     
-    // Função para baixar a configuração (incluindo o estado do checkbox Data/Hora)
+    // Função para baixar a configuração
     window.downloadConfig = function() {
       const tableName = $('#tableName').val().trim();
       const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -353,7 +355,7 @@
       a.click();
     };
     
-    // Função para carregar a configuração (incluindo o checkbox Data/Hora)
+    // Função para carregar a configuração
     window.loadConfigFromFile = function(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -383,7 +385,7 @@
     };
   });
   
-  // Função para copiar o conteúdo do SQL gerado
+  // Função para copiar o conteúdo do SQL gerado para a área de transferência
   window.copySQL = function() {
     const sql = document.getElementById("output").value;
     if (!sql) {
@@ -411,6 +413,21 @@
       }
       document.body.removeChild(textArea);
     }
+  };
+  
+  // Função para baixar o conteúdo do SQL gerado em um arquivo .sql
+  window.downloadSQLFile = function() {
+    const sql = document.getElementById("output").value;
+    if (!sql) {
+      alert("Nenhum SQL gerado para baixar!");
+      return;
+    }
+    const tableName = $('#tableName').val().trim() || "sql_gerado";
+    const blob = new Blob([sql], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = tableName + ".sql";
+    a.click();
   };
 </script>
 
