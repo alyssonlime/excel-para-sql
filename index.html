@@ -72,12 +72,13 @@
       </div>
     </div>
 
-    <!-- Tabela de De-Para com nova ordem de colunas -->
+    <!-- Tabela de De-Para com nova ordem de colunas (coluna "Data/Hora" adicionada após "Incluir") -->
     <div id="mappingContainer" class="mt-3">
       <table class="table table-bordered text-center">
         <thead class="thead-light">
           <tr>
             <th>Incluir</th>
+            <th>Data/Hora</th>
             <th>Índice</th>
             <th>Nome do Campo</th>
             <th>Concatenação</th>
@@ -114,18 +115,15 @@
   }
   
   // Junta os valores usando os separadores configurados.
-  // Se o valor de um item for "null" (ignorando case e espaços), esse item é ignorado e seu separador não é usado.
+  // Se o valor de um item for "null" (ignorando case e espaços), ele é ignorado (junto com seu separador).
   function joinWithSeparators(arr) {
-    // Filtra os itens cujo valor não é "null"
     let filtered = arr.filter(item => item.value.trim().toLowerCase() !== "null");
-    // Se nenhum item for válido, retorna "null"
     if (filtered.length === 0) {
       return "null";
     }
     let result = "";
     for (let i = 0; i < filtered.length; i++) {
       result += filtered[i].value;
-      // Adiciona o separador apenas se houver um próximo item válido
       if (i < filtered.length - 1) {
         result += filtered[i].separator;
       }
@@ -133,7 +131,8 @@
     return result;
   }
   
-  // Formata o valor para SQL: se o valor concatenado for "null" (ignorando case e espaços), retorna null sem aspas.
+  // Formata o valor para SQL: se for "null" (ignorando case e espaços), retorna null sem aspas;
+  // caso contrário, envolve o valor entre aspas.
   function formatSQLValue(val) {
     let trimmed = val.trim();
     if (trimmed.toLowerCase() === "null") {
@@ -142,12 +141,71 @@
     return "'" + val + "'";
   }
   
+  // Converte um valor de data/hora para o formato ISO (yyyy-MM-dd HH:mm:ss) mantendo o fuso horário local.
+  // Se o valor for numérico (serial do Excel), converte-o e, em seguida, ajusta somando o offset do fuso local.
+  // Se o valor for vazio ou inválido, retorna "null".
+  function convertToSQLDateTime(value) {
+    let strVal = value.toString().trim();
+    if (!strVal || strVal.toLowerCase() === "null") {
+      return "null";
+    }
+    // Se for numérico, converte a partir do serial do Excel.
+    if (!isNaN(strVal)) {
+      let numericValue = parseFloat(strVal);
+      let date = new Date((numericValue - 25569) * 86400 * 1000);
+      if (isNaN(date.getTime())) {
+        return "null";
+      }
+      // Ajusta para manter o fuso horário local (adiciona o offset em milissegundos)
+      date = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
+      function pad(n) { return n < 10 ? "0" + n : n; }
+      let yyyy = date.getFullYear();
+      let mm = pad(date.getMonth() + 1);
+      let dd = pad(date.getDate());
+      let hh = pad(date.getHours());
+      let mi = pad(date.getMinutes());
+      let ss = pad(date.getSeconds());
+      return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
+    }
+    // Tenta interpretar a string como data (formatos dd/MM/yyyy ou MM/dd/yyyy com hora opcional)
+    let regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/;
+    let match = strVal.match(regex);
+    if (!match) {
+      return "null";
+    }
+    let part1 = parseInt(match[1], 10);
+    let part2 = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    let hour = match[4] ? parseInt(match[4], 10) : 0;
+    let minute = match[5] ? parseInt(match[5], 10) : 0;
+    let second = match[6] ? parseInt(match[6], 10) : 0;
+    let day, month;
+    if (part1 > 12) {
+      day = part1;
+      month = part2;
+    } else if (part2 > 12) {
+      month = part1;
+      day = part2;
+    } else {
+      day = part1;
+      month = part2;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      return "null";
+    }
+    function pad(n) { return n < 10 ? "0" + n : n; }
+    let datePart = year + "-" + pad(month) + "-" + pad(day);
+    let timePart = (match[4] ? pad(hour) + ":" + pad(minute) + ":" + pad(second) : "00:00:00");
+    return datePart + " " + timePart;
+  }
+  
   $(document).ready(function() {
-    // Cria 50 linhas na tabela de mapeamento com a nova ordem de colunas
+    // Cria 50 linhas na tabela de mapeamento com a nova ordem de colunas (incluindo a coluna "Data/Hora")
     for (let i = 0; i < 50; i++) {
       $('#mappingTable').append(`
         <tr>
           <td><input type="checkbox" class="useField"></td>
+          <td><input type="checkbox" class="isDateTime"></td>
           <td>
             <input type="number" class="columnIndex" min="0" placeholder="Ex: 0" style="width:75px;">
             <span class="columnLetter" style="margin-left: 5px;"></span>
@@ -198,16 +256,17 @@
         const sqlType = $('input[name="sqlType"]:checked').val();
         let mappings = [];
         
-        // Cria o array de mapeamentos a partir das linhas da tabela
+        // Lê os mapeamentos (incluindo o estado do checkbox Data/Hora)
         $('#mappingTable tr').each(function() {
           const include = $(this).find('.useField').prop('checked');
           const index = parseInt($(this).find('.columnIndex').val());
           const fieldName = $(this).find('.fieldName').val().trim();
           const isKey = $(this).find('.isKey').prop('checked');
           const concatSeparator = $(this).find('.concatSeparator').val();
+          const isDateTime = $(this).find('.isDateTime').prop('checked');
           
           if (include && !isNaN(index) && fieldName) {
-            mappings.push({ index, fieldName, isKey, concatSeparator });
+            mappings.push({ index, fieldName, isKey, concatSeparator, isDateTime });
           }
         });
         
@@ -223,14 +282,19 @@
           let values = {};
           let keys = [];
           
-          // Agrupa os valores de cada mapeamento pelo nome do campo,
-          // armazenando cada valor com seu respectivo separador.
-          // Se o valor for "null" (ignorando case), ele será filtrado e não concatenado.
-          mappings.forEach(({ index, fieldName, isKey, concatSeparator }) => {
+          // Para cada mapeamento, agrupa os valores pelo nome do campo.
+          // Se a coluna estiver marcada como Data/Hora, converte o valor para o formato ISO.
+          mappings.forEach(({ index, fieldName, isKey, concatSeparator, isDateTime }) => {
             if (!values[fieldName]) {
               values[fieldName] = [];
             }
-            let sanitizedValue = String(row[index]).replace(/'/g, "''");
+            let cellVal = String(row[index]);
+            let sanitizedValue;
+            if (isDateTime) {
+              sanitizedValue = convertToSQLDateTime(cellVal);
+            } else {
+              sanitizedValue = cellVal.replace(/'/g, "''");
+            }
             values[fieldName].push({ value: sanitizedValue, separator: concatSeparator });
             
             if (isKey) {
@@ -257,7 +321,7 @@
       reader.readAsArrayBuffer(file);
     };
     
-    // Função para baixar a configuração, incluindo o valor de concatenação
+    // Função para baixar a configuração (incluindo o estado do checkbox Data/Hora)
     window.downloadConfig = function() {
       const tableName = $('#tableName').val().trim();
       const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -275,9 +339,10 @@
         const fieldName = $(this).find('.fieldName').val().trim();
         const isKey = $(this).find('.isKey').prop('checked');
         const concatSeparator = $(this).find('.concatSeparator').val();
+        const isDateTime = $(this).find('.isDateTime').prop('checked');
         
         if (include && !isNaN(index) && fieldName) {
-          config.mappings.push({ index, fieldName, isKey, concatSeparator });
+          config.mappings.push({ index, fieldName, isKey, concatSeparator, isDateTime });
         }
       });
       
@@ -288,7 +353,7 @@
       a.click();
     };
     
-    // Função para carregar a configuração, incluindo o valor de concatenação
+    // Função para carregar a configuração (incluindo o checkbox Data/Hora)
     window.loadConfigFromFile = function(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -309,6 +374,7 @@
             $(this).find('.fieldName').val(config.mappings[index].fieldName);
             $(this).find('.concatSeparator').val(config.mappings[index].concatSeparator);
             $(this).find('.isKey').prop('checked', config.mappings[index].isKey);
+            $(this).find('.isDateTime').prop('checked', config.mappings[index].isDateTime);
           }
         });
       };
