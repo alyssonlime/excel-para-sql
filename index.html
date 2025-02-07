@@ -103,7 +103,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
 <script>
-  // Função para converter número para a letra da coluna do Excel
+  // Converte número para a letra da coluna do Excel
   function numberToExcelColumn(n) {
     let result = '';
     while(n >= 0) {
@@ -113,17 +113,25 @@
     return result;
   }
   
-  // Função que junta os valores usando os separadores configurados
+  // Junta os valores usando os separadores configurados
   function joinWithSeparators(arr) {
     let result = '';
     for (let i = 0; i < arr.length; i++) {
       result += arr[i].value;
-      // Adiciona o separador configurado se não for o último item
       if (i < arr.length - 1) {
         result += arr[i].separator;
       }
     }
     return result;
+  }
+  
+  // Formata o valor para SQL: se o valor concatenado for "null" (ignorando case e espaços), retorna null sem aspas.
+  function formatSQLValue(val) {
+    let trimmed = val.trim();
+    if (trimmed.toLowerCase() === "null") {
+      return "null";
+    }
+    return "'" + val + "'";
   }
   
   $(document).ready(function() {
@@ -156,7 +164,7 @@
       $(this).siblings('.columnLetter').text(letter);
     });
   
-    // Função que gera o SQL ao clicar no botão "Gerar SQL"
+    // Gera o SQL ao clicar no botão "Gerar SQL"
     window.generateSQL = function() {
       const fileInput = document.getElementById('fileUpload');
       if (!fileInput.files || fileInput.files.length === 0) {
@@ -217,18 +225,18 @@
             values[fieldName].push({ value: sanitizedValue, separator: concatSeparator });
             
             if (isKey) {
-              keys.push(`${fieldName} = '${sanitizedValue}'`);
+              keys.push(`${fieldName} = ${formatSQLValue(sanitizedValue)}`);
             }
           });
           
           let columns = Object.keys(values);
-          let formattedValues = columns.map(col => `'${joinWithSeparators(values[col])}'`);
+          let formattedValues = columns.map(col => formatSQLValue(joinWithSeparators(values[col])));
           
           if (sqlType === 'insert') {
             sqlStatements.push(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${formattedValues.join(', ')});`);
           } else if (sqlType === 'update' && keys.length > 0) {
             let setClause = columns.filter(col => !mappings.find(m => m.fieldName === col && m.isKey))
-                                    .map(col => `${col} = '${joinWithSeparators(values[col])}'`)
+                                    .map(col => `${col} = ${formatSQLValue(joinWithSeparators(values[col]))}`)
                                     .join(', ');
             sqlStatements.push(`UPDATE ${tableName} SET ${setClause} WHERE ${keys.join(' AND ')};`);
           }
@@ -314,7 +322,6 @@
         alert("Erro ao copiar o SQL.");
       });
     } else {
-      // Fallback para navegadores que não suportam navigator.clipboard
       let textArea = document.createElement("textarea");
       textArea.value = sql;
       textArea.style.position = "fixed";
