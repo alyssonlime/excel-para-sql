@@ -113,13 +113,21 @@
     return result;
   }
   
-  // Junta os valores usando os separadores configurados
+  // Junta os valores usando os separadores configurados.
+  // Se o valor de um item for "null" (ignorando case e espaços), esse item é ignorado e seu separador não é usado.
   function joinWithSeparators(arr) {
-    let result = '';
-    for (let i = 0; i < arr.length; i++) {
-      result += arr[i].value;
-      if (i < arr.length - 1) {
-        result += arr[i].separator;
+    // Filtra os itens cujo valor não é "null"
+    let filtered = arr.filter(item => item.value.trim().toLowerCase() !== "null");
+    // Se nenhum item for válido, retorna "null"
+    if (filtered.length === 0) {
+      return "null";
+    }
+    let result = "";
+    for (let i = 0; i < filtered.length; i++) {
+      result += filtered[i].value;
+      // Adiciona o separador apenas se houver um próximo item válido
+      if (i < filtered.length - 1) {
+        result += filtered[i].separator;
       }
     }
     return result;
@@ -135,7 +143,7 @@
   }
   
   $(document).ready(function() {
-    // Criação das 50 linhas da tabela de mapeamento com a nova ordem de colunas
+    // Cria 50 linhas na tabela de mapeamento com a nova ordem de colunas
     for (let i = 0; i < 50; i++) {
       $('#mappingTable').append(`
         <tr>
@@ -216,7 +224,8 @@
           let keys = [];
           
           // Agrupa os valores de cada mapeamento pelo nome do campo,
-          // armazenando cada valor com seu respectivo separador
+          // armazenando cada valor com seu respectivo separador.
+          // Se o valor for "null" (ignorando case), ele será filtrado e não concatenado.
           mappings.forEach(({ index, fieldName, isKey, concatSeparator }) => {
             if (!values[fieldName]) {
               values[fieldName] = [];
